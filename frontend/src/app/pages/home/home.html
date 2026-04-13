@@ -1,0 +1,231 @@
+<main class="shell">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Agentic job search cockpit</p>
+      <h1>Track live backend jobs, sharpen search, and move faster.</h1>
+      <p class="lead">
+        Sign in to access the protected API, search the latest listings, and turn live backend data into focused next-step recommendations.
+      </p>
+
+      <div class="hero-stats">
+        <article>
+          <strong>{{ latestJobs().length }}</strong>
+          <span>fresh roles loaded</span>
+        </article>
+        <article>
+          <strong>{{ totalJobs() }}</strong>
+          <span>matching jobs found</span>
+        </article>
+        <article>
+          <strong>{{ jobInsights().momentumLabel }}</strong>
+          <span>market momentum</span>
+        </article>
+      </div>
+    </div>
+
+    <section class="auth-card">
+      <div class="auth-toggle">
+        <button type="button" [class.active]="authMode() === 'login'" (click)="setAuthMode('login')">
+          Login
+        </button>
+        <button type="button" [class.active]="authMode() === 'signup'" (click)="setAuthMode('signup')">
+          Sign up
+        </button>
+      </div>
+
+      <ng-container *ngIf="isAuthenticated(); else authFormTemplate">
+        <div class="welcome-panel">
+          <p class="welcome-label">Signed in as</p>
+          <h2>{{ user()?.name }}</h2>
+          <p>{{ user()?.email }}</p>
+          <button type="button" class="secondary" (click)="logout()">Logout</button>
+        </div>
+      </ng-container>
+
+      <ng-template #authFormTemplate>
+        <form class="auth-form" [formGroup]="authForm" (ngSubmit)="submitAuth()">
+          <ng-container *ngIf="authMode() === 'signup'">
+            <label>
+              <span>Name</span>
+              <input type="text" formControlName="name" placeholder="Ayesha Khan" />
+            </label>
+          </ng-container>
+
+          <label>
+            <span>Email</span>
+            <input type="email" formControlName="email" placeholder="you@example.com" />
+          </label>
+
+          <label>
+            <span>Password</span>
+            <input type="password" formControlName="password" placeholder="Strong password" />
+          </label>
+
+          <p class="form-error" *ngIf="authError()">{{ authError() }}</p>
+
+          <button type="submit" [disabled]="submittingAuth()">
+            {{ submittingAuth() ? 'Working...' : authMode() === 'login' ? 'Enter dashboard' : 'Create account' }}
+          </button>
+        </form>
+      </ng-template>
+    </section>
+  </section>
+
+  <section class="dashboard" [class.locked]="!isAuthenticated()">
+    <div class="grid">
+      <section class="panel search-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Backend search</p>
+            <h2>Protected jobs explorer</h2>
+          </div>
+          <span class="chip" *ngIf="dashboardReady()">{{ filterSummary() }}</span>
+        </div>
+
+        <form class="filters" [formGroup]="filtersForm" (ngSubmit)="searchJobs(1)">
+          <label>
+            <span>Title</span>
+            <input type="text" formControlName="title" placeholder="frontend developer" />
+          </label>
+
+          <label>
+            <span>Location</span>
+            <input type="text" formControlName="location" placeholder="remote" />
+          </label>
+
+          <label>
+            <span>Page size</span>
+            <select formControlName="limit">
+              <option [value]="8">8</option>
+              <option [value]="12">12</option>
+              <option [value]="20">20</option>
+            </select>
+          </label>
+
+          <div class="actions">
+            <button type="submit" [disabled]="!isAuthenticated() || jobsLoading()">
+              {{ jobsLoading() ? 'Searching...' : 'Search jobs' }}
+            </button>
+            <button
+              type="button"
+              class="secondary"
+              [disabled]="!isAuthenticated() || latestLoading()"
+              (click)="loadLatestJobs()"
+            >
+              {{ latestLoading() ? 'Refreshing...' : 'Refresh latest' }}
+            </button>
+          </div>
+        </form>
+
+        <ng-container *ngIf="!isAuthenticated(); else searchResults">
+          <p class="empty-state">Sign in to unlock the protected API feeds and view live listings.</p>
+        </ng-container>
+
+        <ng-template #searchResults>
+          <p class="form-error" *ngIf="jobsError()">{{ jobsError() }}</p>
+          <p class="empty-state" *ngIf="!jobsError() && jobs().length === 0 && !jobsLoading()">
+            No jobs match the current filter. Try widening the title or location.
+          </p>
+
+          <div class="jobs-list" *ngIf="jobs().length > 0">
+            <article class="job-card" *ngFor="let job of jobs(); trackBy: trackJob">
+              <div class="job-topline">
+                <span class="source">{{ job.source }}</span>
+                <span>{{ job.postedAt | date: 'mediumDate' }}</span>
+              </div>
+              <h3>{{ job.title }}</h3>
+              <p>{{ job.company }} • {{ job.location }}</p>
+              <a [href]="job.url" target="_blank" rel="noopener">Open posting</a>
+            </article>
+          </div>
+
+          <div class="pager" *ngIf="jobs().length > 0">
+            <button type="button" class="secondary" [disabled]="currentPage() === 1" (click)="previousPage()">
+              Previous
+            </button>
+            <span>Page {{ currentPage() }} of {{ totalPages() }}</span>
+            <button type="button" class="secondary" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
+              Next
+            </button>
+          </div>
+        </ng-template>
+      </section>
+
+      <section class="panel insights-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Agentic AI</p>
+            <h2>Search copilot</h2>
+          </div>
+          <span class="chip accent">{{ jobInsights().focusScore }} focus score</span>
+        </div>
+
+        <form class="copilot-form" [formGroup]="assistantForm" (ngSubmit)="refreshAgentGoal()">
+          <label>
+            <span>Career objective</span>
+            <textarea
+              rows="4"
+              formControlName="goal"
+              placeholder="Describe the roles, stack, seniority, or job strategy you want help with."
+            ></textarea>
+          </label>
+          <button type="submit">Update plan</button>
+        </form>
+
+        <article class="insight-callout">
+          <p class="eyebrow">Primary read</p>
+          <h3>{{ jobInsights().headline }}</h3>
+          <p>{{ jobInsights().summary }}</p>
+        </article>
+
+        <div class="insight-columns">
+          <article class="mini-panel" *ngFor="let insight of jobInsights().insights; trackBy: trackByInsight">
+            <h3>{{ insight.title }}</h3>
+            <p>{{ insight.body }}</p>
+          </article>
+        </div>
+
+        <div class="suggestions">
+          <p class="eyebrow">Recommended actions</p>
+          <button
+            type="button"
+            class="suggestion"
+            *ngFor="let suggestion of jobInsights().suggestions; trackBy: trackBySuggestion"
+            (click)="applyAgentSuggestion(suggestion)"
+          >
+            <strong>{{ suggestion.label }}</strong>
+            <span>{{ suggestion.reason }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel latest-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Last 24 hours</p>
+            <h2>Latest opportunities</h2>
+          </div>
+          <span class="chip" *ngIf="highlightedJob() as topJob">{{ topJob.company }}</span>
+        </div>
+
+        <p class="form-error" *ngIf="latestError()">{{ latestError() }}</p>
+        <p class="empty-state" *ngIf="!latestError() && !isAuthenticated()">
+          Latest jobs load after login because the backend protects this feed with JWT authentication.
+        </p>
+
+        <div class="latest-stack" *ngIf="isAuthenticated() && latestJobs().length > 0">
+          <article class="latest-card" *ngFor="let job of latestJobs().slice(0, 6); trackBy: trackJob">
+            <div>
+              <h3>{{ job.title }}</h3>
+              <p>{{ job.company }} • {{ job.location }}</p>
+            </div>
+            <div class="latest-meta">
+              <span>{{ job.source }}</span>
+              <a [href]="job.url" target="_blank" rel="noopener">Apply</a>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </section>
+</main>
